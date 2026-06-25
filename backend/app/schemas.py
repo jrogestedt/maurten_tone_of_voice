@@ -79,3 +79,30 @@ class VoiceConfigRead(BaseModel):
 class OptionsResponse(BaseModel):
     formats: dict[str, str]
     intents: dict[str, str]
+
+
+# --- Auth (STC OTP login) ---
+
+class RequestCodeRequest(BaseModel):
+    email: str = Field(min_length=3)
+
+
+class RequestCodeResponse(BaseModel):
+    email: str
+    sent: bool = True
+
+
+class VerifyCodeRequest(BaseModel):
+    email: str = Field(min_length=3)
+    code: str = Field(min_length=1)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    email: str
+
+
+class MeResponse(BaseModel):
+    email: str

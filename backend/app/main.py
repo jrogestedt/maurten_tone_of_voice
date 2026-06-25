@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from .config import get_settings
 from .database import engine, init_db
-from .routers import documents, review, voice_config
+from .routers import auth, documents, review, voice_config
 from .seed import seed
 
 settings = get_settings()
@@ -30,6 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(review.router)
 app.include_router(documents.router)
 app.include_router(voice_config.router)

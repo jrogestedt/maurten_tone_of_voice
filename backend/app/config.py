@@ -26,10 +26,24 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed origins. "*" allows all (fine pre-login).
     allowed_origins: str = "*"
 
-    # --- Simple optional protection (placeholder until real login) ---
+    # --- Simple optional protection (legacy; superseded by STC login below) ---
     # If set, every request must send `Authorization: Bearer <api_key>`.
-    # Leave empty to disable.
+    # Leave empty to disable. Kept only for backwards compatibility.
     api_key: str = ""
+
+    # --- Auth: SportsTec Connect (STC) OTP login ---
+    # STC emails a one-time code; we verify it and mint our own JWT.
+    # USER_DB_URL already includes the trailing "/api/" path segment.
+    user_db_url: str = ""
+    user_db_functions_key: str = ""
+    user_db_app_id: str = ""
+
+    # JWT we issue after a successful STC code check. Must be set in production.
+    jwt_secret: str = ""
+    jwt_ttl_minutes: int = 720  # 12h — re-login after expiry (no refresh tokens)
+
+    # Only addresses on this domain may log in. Set empty to allow any domain.
+    allowed_email_domain: str = "maurten.com"
 
     @property
     def origins_list(self) -> list[str]:

@@ -1,10 +1,21 @@
+import { getToken, clearSession } from "./auth.js";
+
 const BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 async function req(path, options = {}) {
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
   });
+  if (res.status === 401) {
+    // Token missing/expired — drop the session so the app shows the login screen.
+    clearSession();
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -20,6 +31,13 @@ async function req(path, options = {}) {
 }
 
 export const api = {
+  // --- Auth ---
+  requestCode: (email) =>
+    req("/api/auth/request-code", { method: "POST", body: JSON.stringify({ email }) }),
+  verifyCode: (email, code) =>
+    req("/api/auth/verify-code", { method: "POST", body: JSON.stringify({ email, code }) }),
+  me: () => req("/api/auth/me"),
+
   options: () => req("/api/options"),
   review: (payload) =>
     req("/api/review", { method: "POST", body: JSON.stringify(payload) }),

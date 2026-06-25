@@ -131,3 +131,21 @@ select option { background: var(--mid); }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .toggle { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); cursor: pointer; }
 .saved { font-family: var(--mono); font-size: 9px; color: var(--green); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* --- Auth --- */
+.header-user { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.04em; margin-left: 14px; }
+.header-logout {
+  background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 8px; margin-left: 10px; transition: color 0.15s, border-color 0.15s;
+}
+.header-logout:hover { color: var(--accent); border-color: var(--accent); }
+
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.login-card {
+  width: 100%; max-width: 360px; border: 1px solid var(--border); background: var(--mid);
+  padding: 28px 26px; display: flex; flex-direction: column; gap: 16px;
+}
+.login-brand { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; }
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.login-form .btn, .login-form .btn-sec { width: 100%; text-align: center; }
