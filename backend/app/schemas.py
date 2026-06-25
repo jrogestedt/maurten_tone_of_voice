@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field
 
@@ -11,9 +12,16 @@ class ReviewRequest(BaseModel):
     intent: str = "product"
 
 
+# These two enums mirror the REVIEW_CONTRACT in voice.py. As Literals they are
+# emitted as JSON-schema enums under structured outputs, so the model is
+# constrained to valid values and the API response is validated against them too.
+ReviewFlag = Literal["red", "amber", "green"]
+ReviewNoteType = Literal["Red Line", "Voice", "Structure", "Redundant", "Hydrogel", "Strong"]
+
+
 class ReviewNote(BaseModel):
-    flag: str
-    type: str
+    flag: ReviewFlag
+    type: ReviewNoteType
     quote: str = ""
     issue: str
     fix: str = ""
@@ -76,6 +84,26 @@ class DownloadResponse(BaseModel):
     url: str
 
 
+class ContextStatus(BaseModel):
+    """Health of the active reference corpus against the context budget.
+
+    `level` is computed server-side (see voice.context_status); the frontend
+    panel renders the human-readable copy per level.
+    """
+
+    level: Literal["ok", "review", "act"]
+    active_docs: int
+    total_docs: int
+    used_chars: int
+    active_chars: int
+    max_context_chars: int
+    fill_pct: float
+    dropped_count: int
+    dropped_titles: list[str]
+    review_model: str
+    rewrite_model: str
+
+
 # --- Voice config ---
 
 class VoiceConfigUpdate(BaseModel):
@@ -85,6 +113,31 @@ class VoiceConfigUpdate(BaseModel):
 class VoiceConfigRead(BaseModel):
     prompt: str
     updated_at: datetime
+
+
+# --- Usage / cost reporting ---
+
+class UsageGroupStat(BaseModel):
+    key: str  # model id, or operation ("review" / "rewrite")
+    calls: int
+    input_tokens: int
+    cache_creation_input_tokens: int
+    cache_read_input_tokens: int
+    output_tokens: int
+    cost_usd: float
+
+
+class UsageSummary(BaseModel):
+    total_calls: int
+    total_input_tokens: int
+    total_cache_creation_input_tokens: int
+    total_cache_read_input_tokens: int
+    total_output_tokens: int
+    total_tokens: int
+    total_cost_usd: float
+    since: datetime | None = None
+    by_model: list[UsageGroupStat]
+    by_operation: list[UsageGroupStat]
 
 
 # --- Options (for frontend dropdowns) ---

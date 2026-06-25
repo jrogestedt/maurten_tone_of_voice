@@ -1,9 +1,12 @@
+import logging
+
 from sqlmodel import Session, select
 
 from .config import get_settings
 from .models import Document, VoiceConfig
 
 settings = get_settings()
+logger = logging.getLogger("maurten.voice")
 
 
 # The default "Head of Copy" system prompt. Stored in the DB on first run and
@@ -68,31 +71,121 @@ def get_voice_prompt(session: Session) -> str:
     return cfg.prompt if cfg else DEFAULT_VOICE_PROMPT
 
 
+# Thresholds that decide when the "send every document" approach should be
+# reviewed. First-pass defaults — tune freely; the corpus-status panel reads
+# these as the single source of truth (see context_status). The binding cost is
+# the prompt-cache cold-write, so the budget fill % is the primary signal; the
+# doc-count nudge mirrors how the corpus is reasoned about day to day.
+CONTEXT_REVIEW_FILL_PCT = 60  # amber: heads-up that a distilled voice spec is coming
+CONTEXT_ACT_FILL_PCT = 90  # red: at/over budget — act now
+CONTEXT_REVIEW_DOC_COUNT = 25  # amber: secondary nudge on raw active-doc count
+
+
+def _format_doc_block(doc: Document) -> str:
+    """The exact byte sequence a document contributes to the system prompt.
+
+    Used for both prompt assembly and budget accounting, so the two never drift.
+    """
+    return f"### {doc.title} ({doc.category})\n{doc.content}"
+
+
+def _active_documents(session: Session) -> list[Document]:
+    # Deterministic order is load-bearing: the system prompt is the cached prefix,
+    # so a stable byte sequence is what lets prompt caching hit across calls. It
+    # also makes the max_context_chars budget drop a *predictable* tail of docs
+    # rather than a random subset.
+    return session.exec(
+        select(Document)
+        .where(Document.active == True)  # noqa: E712
+        .order_by(Document.id)
+    ).all()
+
+
+def pack_active_documents(session: Session) -> tuple[list[str], list[str], int]:
+    """Greedy-pack active docs against the char budget.
+
+    Returns (fitted blocks, dropped titles, chars used). Documents are packed in
+    id-order, skipping any single doc that won't fit and continuing with the rest
+    — so one oversized doc no longer silently drops every doc after it, and the
+    byte sequence stays deterministic for prompt caching. This is the one place
+    the budget decision lives; both the system prompt and the status panel use it.
+    """
+    budget = settings.max_context_chars
+    fitted: list[str] = []
+    dropped: list[str] = []
+    used = 0
+    for doc in _active_documents(session):
+        block = _format_doc_block(doc)
+        if len(block) > budget:
+            dropped.append(doc.title)
+            continue
+        fitted.append(block)
+        budget -= len(block)
+        used += len(block)
+    return fitted, dropped, used
+
+
 def build_system_prompt(session: Session) -> str:
     """Persona + active reference documents, capped at max_context_chars."""
     parts = [get_voice_prompt(session)]
 
-    docs = session.exec(
-        select(Document).where(Document.active == True)  # noqa: E712
-    ).all()
-
-    if docs:
-        budget = settings.max_context_chars
-        examples: list[str] = []
-        for doc in docs:
-            block = f"### {doc.title} ({doc.category})\n{doc.content}"
-            if budget - len(block) < 0:
-                break
-            examples.append(block)
-            budget -= len(block)
-        if examples:
-            parts.append(
-                "Below are reference examples of the Maurten voice. Use them to "
-                "calibrate tone, rhythm, and register. Do not quote them back.\n\n"
-                + "\n\n".join(examples)
-            )
+    examples, dropped, _used = pack_active_documents(session)
+    if dropped:
+        # Surface lost exemplars rather than dropping them silently — this is the
+        # signal that the corpus has outgrown the context budget and it's time to
+        # raise the cap or move to a distilled voice spec.
+        logger.warning(
+            "Reference-doc budget (%d chars) exceeded: dropped %d docs from the "
+            "system prompt: %s",
+            settings.max_context_chars,
+            len(dropped),
+            ", ".join(dropped),
+        )
+    if examples:
+        parts.append(
+            "Below are reference examples of the Maurten voice. Use them to "
+            "calibrate tone, rhythm, and register. Do not quote them back.\n\n"
+            + "\n\n".join(examples)
+        )
 
     return "\n\n".join(parts)
+
+
+def context_status(session: Session) -> dict:
+    """Read-only health of the reference corpus against the context budget.
+
+    Powers the upload-page status panel. `level` is the single source of truth
+    for *when* to flag a review of the send-everything approach; the panel owns
+    the human-readable copy.
+    """
+    all_docs = session.exec(select(Document)).all()
+    active = _active_documents(session)
+    _fitted, dropped, used = pack_active_documents(session)
+
+    cap = settings.max_context_chars
+    active_chars = sum(len(_format_doc_block(d)) for d in active)
+    fill_pct = round(active_chars / cap * 100, 1) if cap else 0.0
+
+    if dropped or fill_pct >= CONTEXT_ACT_FILL_PCT:
+        level = "act"
+    elif fill_pct >= CONTEXT_REVIEW_FILL_PCT or len(active) >= CONTEXT_REVIEW_DOC_COUNT:
+        level = "review"
+    else:
+        level = "ok"
+
+    return {
+        "level": level,
+        "active_docs": len(active),
+        "total_docs": len(all_docs),
+        "used_chars": used,
+        "active_chars": active_chars,
+        "max_context_chars": cap,
+        "fill_pct": fill_pct,
+        "dropped_count": len(dropped),
+        "dropped_titles": dropped,
+        "review_model": settings.anthropic_review_model,
+        "rewrite_model": settings.anthropic_rewrite_model,
+    }
 
 
 def build_review_prompt(copy: str, fmt_key: str, intent_key: str) -> str:

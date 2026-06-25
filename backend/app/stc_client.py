@@ -8,11 +8,14 @@ Mirrors the OTP surface of the mios core-api `stc_client`, trimmed to just the
 two calls this app needs: send a code, validate a code.
 """
 
+import logging
 from urllib.parse import quote
 
 import httpx
 
 from .config import get_settings
+
+logger = logging.getLogger("maurten.stc")
 
 
 class StcError(Exception):
@@ -45,16 +48,29 @@ def _request(method: str, path: str, body: dict) -> dict:
     try:
         resp = httpx.request(method, f"{base}{path}", json=body, headers=headers, timeout=10.0)
     except Exception as exc:  # noqa: BLE001 — surface as a uniform StcError
+        # No HTTP response — DNS, connect timeout, TLS, etc. The path carries the
+        # app_id, which is exactly what to compare across environments.
+        logger.warning("STC %s %s -> network/config error: %s", method, path, exc)
         raise StcError(None, str(exc)) from exc
 
     if not resp.is_success:
+        logger.warning("STC %s %s -> %s %s", method, path, resp.status_code, resp.reason_phrase)
         raise StcError(resp.status_code, resp.reason_phrase)
-    if not resp.content:
-        return {}
-    try:
-        return resp.json()
-    except ValueError as exc:
-        raise StcError(resp.status_code, "Malformed JSON response") from exc
+
+    parsed: dict = {}
+    if resp.content:
+        try:
+            parsed = resp.json()
+        except ValueError as exc:
+            raise StcError(resp.status_code, "Malformed JSON response") from exc
+
+    # Log STC's verdict on a *successful* call. This is the case that otherwise
+    # has zero visibility: STC returns 2xx but no email lands. We log the status
+    # and the body's top-level keys only — never the OTP code or any value — so a
+    # "delivered/queued/failed"-style field shows up without leaking the secret.
+    keys = list(parsed.keys()) if isinstance(parsed, dict) else type(parsed).__name__
+    logger.info("STC %s %s -> %s; body keys: %s", method, path, resp.status_code, keys)
+    return parsed
 
 
 def send_otp(email: str) -> dict:

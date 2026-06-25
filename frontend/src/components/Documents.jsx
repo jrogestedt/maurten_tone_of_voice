@@ -6,8 +6,13 @@ const ACCEPT = ".txt,.md,.pdf,.docx,.doc";
 
 const blank = { title: "", category: "general", content: "", active: true };
 
+// Edit this single line to change who maintainers are told to contact.
+const SUPPORT_CONTACT =
+  "Questions about model choice or scaling the document set? Reach out to SportsTech.";
+
 export default function Documents() {
   const [docs, setDocs] = useState([]);
+  const [status, setStatus] = useState(null);
   const [mode, setMode] = useState("text"); // "text" | "upload"
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
@@ -19,7 +24,12 @@ export default function Documents() {
   async function load() {
     setLoading(true);
     try {
-      setDocs(await api.listDocuments());
+      const [list, st] = await Promise.all([
+        api.listDocuments(),
+        api.getContextStatus(),
+      ]);
+      setDocs(list);
+      setStatus(st);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -200,6 +210,8 @@ export default function Documents() {
         Corpus ({docs.filter((d) => d.active).length} active / {docs.length} total)
       </div>
 
+      <ContextStatusPanel status={status} />
+
       {loading ? (
         <div className="spinner">Loading…</div>
       ) : (
@@ -227,6 +239,69 @@ export default function Documents() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+const LEVEL_COPY = {
+  ok: { badge: "Healthy", tone: "the current approach is the right choice" },
+  review: {
+    badge: "Review recommended",
+    tone: "approaching the limit of the send-every-document approach",
+  },
+  act: {
+    badge: "Action needed",
+    tone: "the corpus has outgrown the send-every-document approach",
+  },
+};
+
+const fmt = (n) => Number(n || 0).toLocaleString();
+
+// Persistent corpus-health panel. Always shown — it explains the current state
+// (including when everything is healthy) so maintainers know when, and why, the
+// implementation approach should change. Level + thresholds come from the
+// backend (voice.context_status); the copy lives here.
+function ContextStatusPanel({ status }) {
+  if (!status) return null;
+  const copy = LEVEL_COPY[status.level] || LEVEL_COPY.ok;
+  return (
+    <div className={`ctx-status ctx-${status.level}`}>
+      <div className="ctx-head">
+        <span className="ctx-badge">{copy.badge}</span>
+        <span className="ctx-tone">{copy.tone}</span>
+      </div>
+
+      <div className="ctx-metrics">
+        {status.active_docs} active docs · {fmt(status.active_chars)} /{" "}
+        {fmt(status.max_context_chars)} chars ({status.fill_pct}% of context budget)
+      </div>
+
+      {status.dropped_count > 0 && (
+        <div className="ctx-dropped">
+          {status.dropped_count} document
+          {status.dropped_count > 1 ? "s" : ""} currently dropped from the model
+          context: {status.dropped_titles.join(", ")}
+        </div>
+      )}
+
+      <div className="ctx-models">
+        Review model: <b>{status.review_model}</b> · Rewrite model:{" "}
+        <b>{status.rewrite_model}</b>
+        {status.level === "ok" && " — appropriate for a corpus of this size."}
+      </div>
+
+      <div className="ctx-explain">
+        Every active reference document is sent to the model on each review and
+        rewrite, as examples of the Maurten voice. The "context budget" is the
+        most reference text that can be sent at once. As the corpus approaches
+        the budget, each review costs and takes a little more; once it exceeds
+        the budget, documents at the bottom of the list are dropped from the
+        model's context. That is the point to switch from sending every document
+        to a distilled "voice spec" — a compact summary plus a few canonical
+        examples — which keeps the whole voice in play without growing the prompt.
+      </div>
+
+      <div className="ctx-contact">{SUPPORT_CONTACT}</div>
     </div>
   );
 }

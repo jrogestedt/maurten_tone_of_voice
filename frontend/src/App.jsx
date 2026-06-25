@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Reviewer from "./components/Reviewer.jsx";
 import Documents from "./components/Documents.jsx";
 import VoiceConfig from "./components/VoiceConfig.jsx";
+import Usage from "./components/Usage.jsx";
+import Guide from "./components/Guide.jsx";
 import Login from "./components/Login.jsx";
 import { isLoggedIn, clearSession, onAuthChange } from "./auth.js";
 
@@ -47,6 +49,9 @@ export default function App() {
       </div>
 
       <div className="nav">
+        <button className={tab === "guide" ? "active" : ""} onClick={() => setTab("guide")}>
+          How to use
+        </button>
         <button className={tab === "reviewer" ? "active" : ""} onClick={() => setTab("reviewer")}>
           Reviewer
         </button>
@@ -56,11 +61,16 @@ export default function App() {
         <button className={tab === "voice" ? "active" : ""} onClick={() => setTab("voice")}>
           Voice Config
         </button>
+        <button className={tab === "usage" ? "active" : ""} onClick={() => setTab("usage")}>
+          Usage
+        </button>
       </div>
 
+      {tab === "guide" && <Guide onStart={() => setTab("reviewer")} />}
       {tab === "reviewer" && <Reviewer />}
       {tab === "documents" && <Documents />}
       {tab === "voice" && <VoiceConfig />}
+      {tab === "usage" && <Usage />}
     </>
   );
 }

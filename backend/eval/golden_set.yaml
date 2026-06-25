@@ -1,0 +1,84 @@
+# Golden set for the tone-of-voice review path.
+#
+# Each sample runs the LIVE review and is checked against `expect`. LLM scores
+# are inherently fuzzy, so bounds are deliberately loose and most violation
+# checks lean on flag counts / substring mentions rather than an exact score.
+#
+# expect keys (all optional):
+#   score_min / score_max   integer bounds on the 1-10 score
+#   min_red_flags / max_red_flags  count of notes with flag == "red"
+#   flag_contains: [str]    each substring MUST appear somewhere in the notes/verdict (case-insensitive)
+#   forbid_contains: [str]  none of these substrings may appear
+#   flag_types: [str]       each note type MUST be present
+#   forbid_types: [str]     none of these note types may be present
+#
+# Defaults: format=general, intent=product.
+
+- name: em_dash_red_line
+  copy: "Carbohydrate, reengineered — the fuel behind the fastest marathon ever run."
+  expect:
+    min_red_flags: 1
+    flag_contains: ["dash"]
+
+- name: this_isnt_x_its_y_red_line
+  copy: "This isn't a sports drink. It's Hydrogel Technology."
+  expect:
+    min_red_flags: 1
+    score_max: 6
+
+- name: emoji_red_line
+  copy: "Fuel up and fly. New Gel 160 out now. 🚀"
+  expect:
+    min_red_flags: 1
+    flag_contains: ["emoji"]
+
+- name: cliche_and_preaching
+  copy: "Push your limits and leave it all on the road. Greatness awaits those who never give up."
+  expect:
+    min_red_flags: 1
+    flag_contains: ["clich"]
+
+- name: exaggerated_claim
+  copy: "The only fuel scientifically proven to make every runner faster, guaranteed."
+  expect:
+    min_red_flags: 1
+    flag_contains: ["claim"]
+
+- name: motivational_preaching
+  copy: "Believe in yourself. Every step is a victory. You've got this, champion!"
+  expect:
+    min_red_flags: 1
+    flag_contains: ["motivat"]
+
+- name: redundant_verbose
+  copy: "Gel 100 is a really very effective and highly efficient fuel that works well and performs strongly."
+  intent: product
+  expect:
+    flag_types: ["Redundant"]
+
+- name: clean_product_on_voice
+  copy: "Gel 100. 25 grams of carbohydrate. Hydrogel Technology carries it to where it is needed. Nothing else."
+  intent: product
+  expect:
+    score_min: 7
+    max_red_flags: 0
+
+- name: reactive_caption_no_product_expected
+  copy: "Two hours, thirty-five minutes. Boston in the rain. She did not blink."
+  format: social
+  intent: reactive
+  expect:
+    forbid_contains: ["missing product", "no product", "lacks product", "product mention", "add a product"]
+    max_red_flags: 0
+
+- name: brand_no_product_expected
+  copy: "Endurance is a conversation with discomfort. We have been listening for years."
+  format: editorial
+  intent: brand
+  expect:
+    # The substantive check is forbid_contains: a brand line must NOT be dinged
+    # for missing product. The score floor is a softer guard against the model
+    # being over-harsh on legitimate abstract brand voice; calibration
+    # watch-point — baseline observed at 5.
+    forbid_contains: ["missing product", "no product", "lacks product", "product mention", "add a product"]
+    score_min: 5

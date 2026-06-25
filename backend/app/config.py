@@ -8,7 +8,11 @@ class Settings(BaseSettings):
 
     # --- Anthropic ---
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-4-6"
+    # Tiered by task: review is the nuanced semantic/linguistic judgment, so it
+    # runs on the most capable model; rewrite is well served by the cheaper one.
+    # Prompt caching (see anthropic_client) absorbs most of the review premium.
+    anthropic_review_model: str = "claude-opus-4-8"
+    anthropic_rewrite_model: str = "claude-sonnet-4-6"
     review_max_tokens: int = 2000
     rewrite_max_tokens: int = 2000
 
@@ -29,8 +33,13 @@ class Settings(BaseSettings):
 
     # --- Context assembly ---
     # Hard cap on how many characters of reference documents get folded into the
-    # system prompt, to keep token usage predictable.
-    max_context_chars: int = 60000
+    # system prompt, to keep token usage predictable. ~200k chars ≈ ~50k tokens,
+    # which comfortably fits the current 20-30 doc corpus while staying far under
+    # the model's 1M context window. The binding cost here is the prompt cache
+    # cold-write, not the context window — revisit (distill the corpus into a
+    # compact voice spec) when the corpus pushes well past this. See
+    # MODEL_COST_AUDIT.md.
+    max_context_chars: int = 200000
 
     # --- CORS ---
     # Comma-separated list of allowed origins. "*" allows all (fine pre-login).

@@ -4,6 +4,7 @@ from sqlmodel import Session
 from ..anthropic_client import run_review, run_rewrite
 from ..database import get_session
 from ..deps import require_auth
+from ..usage import record_usage
 from ..schemas import (
     OptionsResponse,
     ReviewRequest,
@@ -32,9 +33,10 @@ def review(req: ReviewRequest, session: Session = Depends(get_session)) -> Revie
     system_prompt = build_system_prompt(session)
     prompt = build_review_prompt(req.copy, req.format, req.intent)
     try:
-        data = run_review(system_prompt, prompt)
+        data, usage = run_review(system_prompt, prompt)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Review failed: {exc}") from exc
+    record_usage(session, "review", usage)
     return ReviewResponse(**data)
 
 
@@ -43,7 +45,8 @@ def rewrite(req: RewriteRequest, session: Session = Depends(get_session)) -> Rew
     system_prompt = build_system_prompt(session)
     prompt = build_rewrite_prompt(req.copy, req.format, req.intent, req.issues)
     try:
-        text = run_rewrite(system_prompt, prompt)
+        text, usage = run_rewrite(system_prompt, prompt)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Rewrite failed: {exc}") from exc
+    record_usage(session, "rewrite", usage)
     return RewriteResponse(rewrite=text)

@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from .config import get_settings
 from .database import engine, init_db
-from .routers import auth, documents, review, voice_config
+from .routers import auth, documents, review, usage, voice_config
 from .seed import seed
 
 settings = get_settings()
@@ -34,8 +34,13 @@ app.include_router(auth.router)
 app.include_router(review.router)
 app.include_router(documents.router)
 app.include_router(voice_config.router)
+app.include_router(usage.router)
 
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
-    return {"status": "ok", "model": settings.anthropic_model}
+    return {
+        "status": "ok",
+        "review_model": settings.anthropic_review_model,
+        "rewrite_model": settings.anthropic_rewrite_model,
+    }

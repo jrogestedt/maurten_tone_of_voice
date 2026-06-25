@@ -10,7 +10,14 @@ from ..database import get_session
 from ..deps import require_auth
 from ..extract import ExtractionError, UnsupportedFileType, extract_text, is_supported
 from ..models import Document
-from ..schemas import DocumentCreate, DocumentRead, DocumentUpdate, DownloadResponse
+from ..schemas import (
+    ContextStatus,
+    DocumentCreate,
+    DocumentRead,
+    DocumentUpdate,
+    DownloadResponse,
+)
+from ..voice import context_status
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +48,13 @@ def _mirror_text_to_s3(doc: Document) -> None:
 @router.get("", response_model=list[DocumentRead])
 def list_documents(session: Session = Depends(get_session)) -> list[Document]:
     return session.exec(select(Document).order_by(Document.updated_at.desc())).all()
+
+
+# Declared before the /{doc_id} route so the static path isn't captured as an id.
+@router.get("/context-status", response_model=ContextStatus)
+def get_context_status(session: Session = Depends(get_session)) -> dict:
+    """Corpus size vs. the model's context budget — powers the upload-page panel."""
+    return context_status(session)
 
 
 @router.post("", response_model=DocumentRead, status_code=201)

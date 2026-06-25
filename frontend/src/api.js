@@ -58,6 +58,7 @@ export const api = {
     req("/api/rewrite", { method: "POST", body: JSON.stringify(payload) }),
 
   listDocuments: () => req("/api/documents"),
+  getContextStatus: () => req("/api/documents/context-status"),
   createDocument: (payload) =>
     req("/api/documents", { method: "POST", body: JSON.stringify(payload) }),
   uploadDocument: (formData) =>
@@ -70,4 +71,6 @@ export const api = {
   getVoiceConfig: () => req("/api/voice-config"),
   updateVoiceConfig: (prompt) =>
     req("/api/voice-config", { method: "PUT", body: JSON.stringify({ prompt }) }),
+
+  getUsage: () => req("/api/usage"),
 };
