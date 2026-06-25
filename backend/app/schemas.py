@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 # --- Review / Rewrite ---
@@ -59,8 +59,21 @@ class DocumentRead(BaseModel):
     category: str
     content: str
     active: bool
+    source_type: str = "text"
+    original_filename: str | None = None
+    # s3_key is intentionally not exposed; use the download endpoint instead.
+    s3_key: str | None = Field(default=None, exclude=True)
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def has_file(self) -> bool:
+        return bool(self.s3_key)
+
+
+class DownloadResponse(BaseModel):
+    url: str
 
 
 # --- Voice config ---

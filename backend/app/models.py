@@ -16,8 +16,14 @@ class Document(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     title: str
     category: str = "general"  # press | social | editorial | retail | product ...
-    content: str
+    content: str  # extracted/entered text — the persona read path
     active: bool = True
+    # Provenance + original-artifact pointer. The original lives in S3; `content`
+    # is always the text the persona reads.
+    source_type: str = "text"  # "text" (pasted) | "upload" (file)
+    original_filename: str | None = None
+    s3_key: str | None = None
+    mime_type: str | None = None
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 

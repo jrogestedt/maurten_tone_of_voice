@@ -1,0 +1,5 @@
+# Extra system packages for the Railway/nixpacks build.
+# `antiword` is required to extract text from legacy binary .doc files
+# (see app/extract.py); all other formats are pure-Python.
+[phases.setup]
+nixPkgs = ["...", "antiword"]

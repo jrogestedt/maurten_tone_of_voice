@@ -3,14 +3,27 @@ import Reviewer from "./components/Reviewer.jsx";
 import Documents from "./components/Documents.jsx";
 import VoiceConfig from "./components/VoiceConfig.jsx";
 import Login from "./components/Login.jsx";
-import { isLoggedIn, getEmail, clearSession, onAuthChange } from "./auth.js";
+import { isLoggedIn, clearSession, onAuthChange } from "./auth.js";
 
 export default function App() {
   const [tab, setTab] = useState("reviewer");
   const [authed, setAuthed] = useState(isLoggedIn());
+  // Initial theme is applied pre-paint by the inline script in index.html.
+  const [theme, setTheme] = useState(
+    () => document.documentElement.getAttribute("data-theme") || "dark"
+  );
 
   // Re-render whenever the session changes (login, logout, or a 401 clears it).
   useEffect(() => onAuthChange(() => setAuthed(isLoggedIn())), []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem("theme", theme);
+    } catch (e) {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
 
   if (!authed) return <Login />;
 
@@ -20,8 +33,14 @@ export default function App() {
         <span className="header-logo">M.</span>
         <span className="header-divider">/</span>
         <span className="header-title">Brand Voice Reviewer</span>
-        <span className="header-tag">Head of Copy</span>
-        <span className="header-user">{getEmail()}</span>
+        <button
+          className="header-theme"
+          onClick={toggleTheme}
+          title="Toggle light / dark mode"
+          aria-label="Toggle light / dark mode"
+        >
+          {theme === "light" ? "Dark" : "Light"}
+        </button>
         <button className="header-logout" onClick={clearSession}>
           Sign out
         </button>

@@ -4,10 +4,13 @@ const BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 async function req(path, options = {}) {
   const token = getToken();
+  // For FormData bodies, let the browser set Content-Type (with the multipart
+  // boundary) — forcing application/json would break the upload.
+  const isFormData = options.body instanceof FormData;
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
@@ -16,18 +19,28 @@ async function req(path, options = {}) {
     // Token missing/expired — drop the session so the app shows the login screen.
     clearSession();
   }
-  if (!res.ok) {
-    let detail = res.statusText;
+
+  // Read the body as text first so we can give a clear error when the server
+  // returns HTML (e.g. wrong port / backend down) instead of JSON.
+  const text = await res.text();
+  let body = null;
+  if (text) {
     try {
-      const body = await res.json();
-      detail = body.detail || detail;
+      body = JSON.parse(text);
     } catch {
-      /* ignore */
+      if (!res.ok) {
+        throw new Error(
+          `Server returned an unexpected response (HTTP ${res.status}). Is the API reachable?`
+        );
+      }
     }
-    throw new Error(detail);
+  }
+
+  if (!res.ok) {
+    throw new Error((body && body.detail) || res.statusText || `Request failed (${res.status})`);
   }
   if (res.status === 204) return null;
-  return res.json();
+  return body;
 }
 
 export const api = {
@@ -47,9 +60,12 @@ export const api = {
   listDocuments: () => req("/api/documents"),
   createDocument: (payload) =>
     req("/api/documents", { method: "POST", body: JSON.stringify(payload) }),
+  uploadDocument: (formData) =>
+    req("/api/documents/upload", { method: "POST", body: formData }),
   updateDocument: (id, payload) =>
     req(`/api/documents/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteDocument: (id) => req(`/api/documents/${id}`, { method: "DELETE" }),
+  downloadDocument: (id) => req(`/api/documents/${id}/download`),
 
   getVoiceConfig: () => req("/api/voice-config"),
   updateVoiceConfig: (prompt) =>

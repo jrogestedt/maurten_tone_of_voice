@@ -17,6 +17,16 @@ class Settings(BaseSettings):
     # inject DATABASE_URL automatically.
     database_url: str = "sqlite:///./maurten.db"
 
+    # --- Object storage (AWS S3) ---
+    # Originals of every reference document live in S3: uploaded files as-is, and
+    # pasted text mirrored as a .md. Extracted/entered text still lives in the DB
+    # `content` column (the persona read path). Leave bucket empty to disable S3.
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_region: str = "eu-north-1"  # Stockholm; match your bucket's region
+    s3_bucket: str = ""
+    max_upload_size_mb: int = 25
+
     # --- Context assembly ---
     # Hard cap on how many characters of reference documents get folded into the
     # system prompt, to keep token usage predictable.
