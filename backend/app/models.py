@@ -36,6 +36,21 @@ class VoiceConfig(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
 
+class UserModelPref(SQLModel, table=True):
+    """Per-user model selection, keyed by the STC user id (JWT `sub`).
+
+    Each logged-in user independently chooses which model their reviews and
+    rewrites run on. Absent a row, the server defaults (config.Settings) apply.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_key: str = Field(index=True, unique=True)  # JWT `sub` (STC id) or email
+    email: str = ""
+    review_model: str
+    rewrite_model: str
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class UsageRecord(SQLModel, table=True):
     """One Anthropic API call's token usage, for cost/usage reporting.
 

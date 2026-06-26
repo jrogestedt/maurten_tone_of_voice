@@ -3,6 +3,7 @@ import Reviewer from "./components/Reviewer.jsx";
 import Documents from "./components/Documents.jsx";
 import VoiceConfig from "./components/VoiceConfig.jsx";
 import Usage from "./components/Usage.jsx";
+import ModelPrefs from "./components/ModelPrefs.jsx";
 import Guide from "./components/Guide.jsx";
 import Login from "./components/Login.jsx";
 import { isLoggedIn, clearSession, onAuthChange } from "./auth.js";
@@ -61,6 +62,9 @@ export default function App() {
         <button className={tab === "voice" ? "active" : ""} onClick={() => setTab("voice")}>
           Voice Config
         </button>
+        <button className={tab === "model" ? "active" : ""} onClick={() => setTab("model")}>
+          Model
+        </button>
         <button className={tab === "usage" ? "active" : ""} onClick={() => setTab("usage")}>
           Usage
         </button>
@@ -70,6 +74,7 @@ export default function App() {
       {tab === "reviewer" && <Reviewer />}
       {tab === "documents" && <Documents />}
       {tab === "voice" && <VoiceConfig />}
+      {tab === "model" && <ModelPrefs />}
       {tab === "usage" && <Usage />}
     </>
   );

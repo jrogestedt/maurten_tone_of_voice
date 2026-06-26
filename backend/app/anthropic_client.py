@@ -78,10 +78,16 @@ def _guard_stop_reason(label: str, stop_reason: str | None) -> None:
         )
 
 
-def run_review(system_prompt: str, review_prompt: str) -> tuple[dict, dict]:
-    """Run a review. Returns (parsed result, usage payload)."""
+def run_review(
+    system_prompt: str, review_prompt: str, model: str | None = None
+) -> tuple[dict, dict]:
+    """Run a review. Returns (parsed result, usage payload).
+
+    `model` overrides the configured review model (e.g. a per-user selection);
+    None falls back to the server default.
+    """
     client = _get_client()
-    model = settings.anthropic_review_model
+    model = model or settings.anthropic_review_model
     messages: list[MessageParam] = [{"role": "user", "content": review_prompt}]
     message = client.messages.parse(
         model=model,
@@ -103,10 +109,16 @@ def run_review(system_prompt: str, review_prompt: str) -> tuple[dict, dict]:
     return parsed.model_dump(), usage
 
 
-def run_rewrite(system_prompt: str, rewrite_prompt: str) -> tuple[str, dict]:
-    """Run a rewrite. Returns (rewritten copy, usage payload)."""
+def run_rewrite(
+    system_prompt: str, rewrite_prompt: str, model: str | None = None
+) -> tuple[str, dict]:
+    """Run a rewrite. Returns (rewritten copy, usage payload).
+
+    `model` overrides the configured rewrite model (per-user selection); None
+    falls back to the server default.
+    """
     client = _get_client()
-    model = settings.anthropic_rewrite_model
+    model = model or settings.anthropic_rewrite_model
     messages: list[MessageParam] = [{"role": "user", "content": rewrite_prompt}]
     message = client.messages.create(
         model=model,

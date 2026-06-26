@@ -28,11 +28,15 @@ async function req(path, options = {}) {
     try {
       body = JSON.parse(text);
     } catch {
-      if (!res.ok) {
-        throw new Error(
-          `Server returned an unexpected response (HTTP ${res.status}). Is the API reachable?`
-        );
-      }
+      // The API always returns JSON. A non-JSON body — even on a 200 — means the
+      // request didn't reach the backend at all: almost always the frontend is
+      // calling its own origin (VITE_API_BASE_URL missing/wrong) and the static
+      // server returned index.html. Fail loudly instead of treating it as success.
+      throw new Error(
+        res.ok
+          ? `The API returned a non-JSON response (HTTP ${res.status}). The app is calling the wrong address — set VITE_API_BASE_URL to the backend URL and rebuild the frontend.`
+          : `Server returned an unexpected response (HTTP ${res.status}). Is the API reachable?`
+      );
     }
   }
 
@@ -73,4 +77,11 @@ export const api = {
     req("/api/voice-config", { method: "PUT", body: JSON.stringify({ prompt }) }),
 
   getUsage: () => req("/api/usage"),
+
+  getModelPreferences: () => req("/api/model-preferences"),
+  updateModelPreferences: (review_model, rewrite_model) =>
+    req("/api/model-preferences", {
+      method: "PUT",
+      body: JSON.stringify({ review_model, rewrite_model }),
+    }),
 };

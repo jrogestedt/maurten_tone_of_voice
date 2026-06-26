@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from .config import get_settings
 from .database import engine, init_db
-from .routers import auth, documents, review, usage, voice_config
+from .routers import auth, documents, model_prefs, review, usage, voice_config
 from .seed import seed
 
 settings = get_settings()
@@ -35,6 +35,7 @@ app.include_router(review.router)
 app.include_router(documents.router)
 app.include_router(voice_config.router)
 app.include_router(usage.router)
+app.include_router(model_prefs.router)
 
 
 @app.get("/health", tags=["meta"])

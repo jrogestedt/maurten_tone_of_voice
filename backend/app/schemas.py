@@ -140,6 +140,28 @@ class UsageSummary(BaseModel):
     by_operation: list[UsageGroupStat]
 
 
+# --- Per-user model selection ---
+
+class ModelOption(BaseModel):
+    id: str
+    label: str
+    tier: str
+    input_per_mtok: float | None = None
+    output_per_mtok: float | None = None
+
+
+class ModelPreferencesRead(BaseModel):
+    review_model: str
+    rewrite_model: str
+    is_default: bool
+    options: list[ModelOption]
+
+
+class ModelPreferencesUpdate(BaseModel):
+    review_model: str
+    rewrite_model: str
+
+
 # --- Options (for frontend dropdowns) ---
 
 class OptionsResponse(BaseModel):
